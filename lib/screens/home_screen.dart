@@ -26,9 +26,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    final medicineProvider = Provider.of<MedicineProvider>(context, listen: false);
+    final medicineProvider = Provider.of<MedicineProvider>(
+      context,
+      listen: false,
+    );
     final logProvider = Provider.of<LogProvider>(context, listen: false);
-    
+
     await Future.wait([
       medicineProvider.loadMedicines(),
       logProvider.loadLogs(),
@@ -42,9 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _navigateToAddMedicine() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const AddMedicineScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const AddMedicineScreen()),
     ).then((_) => _refreshData());
   }
 
@@ -60,7 +61,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   PreferredSizeWidget _buildHomeAppBar() {
     return AppBar(
-      title: const Text('Today\'s Medicines'),
+      title: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundImage: const AssetImage('assets/images/app_logo.png'),
+            backgroundColor: Colors.transparent,
+          ),
+          const SizedBox(width: 10),
+          const Text('Today\'s Medicines'),
+        ],
+      ),
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh),
@@ -75,9 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Consumer<MedicineProvider>(
       builder: (context, medicineProvider, child) {
         if (medicineProvider.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (medicineProvider.error != null) {
@@ -190,14 +199,8 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       },
       items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.history),
-          label: 'History',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+        BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
       ],
     );
   }
@@ -255,19 +258,17 @@ class _HomeScreenState extends State<HomeScreen> {
           '$label: ',
           style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: AppTextStyles.bodySmall,
-          ),
-        ),
+        Expanded(child: Text(value, style: AppTextStyles.bodySmall)),
       ],
     );
   }
 
   Future<void> _toggleMedicine(String id) async {
-    final medicineProvider = Provider.of<MedicineProvider>(context, listen: false);
-    
+    final medicineProvider = Provider.of<MedicineProvider>(
+      context,
+      listen: false,
+    );
+
     try {
       await medicineProvider.toggleMedicineStatus(id);
       if (mounted) {
@@ -277,9 +278,9 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -305,14 +306,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final medicineProvider = Provider.of<MedicineProvider>(context, listen: false);
-      
+      final medicineProvider = Provider.of<MedicineProvider>(
+        context,
+        listen: false,
+      );
+
       try {
         await medicineProvider.deleteMedicine(id);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$name deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('$name deleted')));
         }
       } catch (e) {
         if (mounted) {

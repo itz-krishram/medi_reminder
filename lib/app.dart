@@ -19,6 +19,17 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _setupAlarmListener();
+    _checkRingingAlarms();
+  }
+
+  Future<void> _checkRingingAlarms() async {
+    final alarms = await Alarm.getAlarms();
+    for (final alarm in alarms) {
+      if (await Alarm.isRinging(alarm.id)) {
+        _handleAlarmRing(alarm);
+        break;
+      }
+    }
   }
 
   void _setupAlarmListener() {
@@ -30,19 +41,20 @@ class _MyAppState extends State<MyApp> {
 
   void _handleAlarmRing(AlarmSettings alarmSettings) {
     debugPrint('🔔 Alarm ringing: ${alarmSettings.id}');
-    
+
     // Navigate to alarm trigger screen
     // We need to find the medicine ID from the alarm ID
     // For now, we'll pass the alarm ID and let the screen handle it
-    
+
     // In a real scenario, you would store a mapping or include
     // the medicine ID in the notification body or use a custom data field
     // For this implementation, we'll navigate to a generic alarm screen
-    
+
     Navigator.of(navigatorKey.currentContext!).push(
       MaterialPageRoute(
         builder: (context) => AlarmTriggerScreen(
-          medicineId: alarmSettings.id.toString(), // This needs to be mapped properly
+          medicineId: alarmSettings.id
+              .toString(), // This needs to be mapped properly
         ),
         fullscreenDialog: true,
       ),

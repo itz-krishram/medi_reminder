@@ -2,9 +2,11 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/medicine.dart';
 import '../providers/medicine_provider.dart';
+import '../providers/log_provider.dart';
 import '../services/alarm_service.dart';
 import '../utils/constants.dart';
 import 'package:intl/intl.dart';
@@ -12,16 +14,14 @@ import 'package:intl/intl.dart';
 class AlarmTriggerScreen extends StatefulWidget {
   final String medicineId;
 
-  const AlarmTriggerScreen({
-    super.key,
-    required this.medicineId,
-  });
+  const AlarmTriggerScreen({super.key, required this.medicineId});
 
   @override
   State<AlarmTriggerScreen> createState() => _AlarmTriggerScreenState();
 }
 
-class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTickerProviderStateMixin {
+class _AlarmTriggerScreenState extends State<AlarmTriggerScreen>
+    with SingleTickerProviderStateMixin {
   Timer? _autoDismissTimer;
   int _remainingSeconds = AppConstants.alarmAutoDismissMinutes * 60;
   late AnimationController _pulseController;
@@ -34,10 +34,15 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
     _loadMedicine();
     _startAutoDismissTimer();
     _setupAnimation();
+    // Enter immersive fullscreen mode
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   void _loadMedicine() {
-    final medicineProvider = Provider.of<MedicineProvider>(context, listen: false);
+    final medicineProvider = Provider.of<MedicineProvider>(
+      context,
+      listen: false,
+    );
     _medicine = medicineProvider.getMedicineById(widget.medicineId);
     if (_medicine == null) {
       // Medicine not found, close screen
@@ -56,10 +61,7 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
     )..repeat(reverse: true);
 
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
 
@@ -81,6 +83,8 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
   void dispose() {
     _autoDismissTimer?.cancel();
     _pulseController.dispose();
+    // Restore normal UI mode
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
@@ -89,7 +93,9 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
 
     try {
       await AlarmService.markAsTaken(_medicine!);
+      // Reload logs so history screen shows the update
       if (mounted) {
+        await Provider.of<LogProvider>(context, listen: false).loadLogs();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Medicine marked as taken'),
@@ -115,11 +121,18 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
     if (_medicine == null) return;
 
     try {
-      await AlarmService.snoozeAlarm(_medicine!, minutes: AppConstants.snoozeDurationMinutes);
+      await AlarmService.snoozeAlarm(
+        _medicine!,
+        minutes: AppConstants.snoozeDurationMinutes,
+      );
+      // Reload logs so history screen shows the update
       if (mounted) {
+        await Provider.of<LogProvider>(context, listen: false).loadLogs();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Alarm snoozed for ${AppConstants.snoozeDurationMinutes} minutes'),
+            content: Text(
+              'Alarm snoozed for ${AppConstants.snoozeDurationMinutes} minutes',
+            ),
             backgroundColor: AppColors.snoozed,
           ),
         );
@@ -143,7 +156,9 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
 
     try {
       await AlarmService.markAsMissed(_medicine!);
+      // Reload logs so history screen shows the update
       if (mounted) {
+        await Provider.of<LogProvider>(context, listen: false).loadLogs();
         Navigator.pop(context);
       }
     } catch (e) {
@@ -167,11 +182,7 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     if (_medicine == null) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return PopScope(
@@ -179,13 +190,10 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.alarmBackgroundGradientStart,
-                AppColors.alarmBackgroundGradientEnd,
-              ],
+            image: DecorationImage(
+              image: AssetImage('assets/images/app_logo.jpeg'),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(Colors.black87, BlendMode.darken),
             ),
           ),
           child: SafeArea(
@@ -207,23 +215,26 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Animated Pill Icon
+                      // Animated App Logo
                       AnimatedBuilder(
                         animation: _pulseAnimation,
                         builder: (context, child) {
                           return Transform.scale(
                             scale: _pulseAnimation.value,
                             child: Container(
-                              width: 120,
-                              height: 120,
+                              width: 140,
+                              height: 140,
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.2),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
-                                Icons.medication,
-                                size: 80,
-                                color: Colors.white,
+                              child: ClipOval(
+                                child: Image.asset(
+                                  'assets/images/app_logo.png',
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                           );
@@ -265,10 +276,7 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
                       // Message
                       const Text(
                         'Time to take your medicine',
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.white70,
-                        ),
+                        style: TextStyle(fontSize: 20, color: Colors.white70),
                       ),
                     ],
                   ),
@@ -279,7 +287,7 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
                   padding: const EdgeInsets.all(AppConstants.paddingLarge),
                   child: Column(
                     children: [
-                      // Taken Button
+                      // I Take Button
                       SizedBox(
                         width: double.infinity,
                         height: 60,
@@ -291,7 +299,7 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
                           ),
                           icon: const Icon(Icons.check_circle, size: 28),
                           label: const Text(
-                            'TAKEN',
+                            'I TAKE',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -302,42 +310,22 @@ class _AlarmTriggerScreenState extends State<AlarmTriggerScreen> with SingleTick
 
                       const SizedBox(height: AppConstants.spacingMedium),
 
-                      // Snooze Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 60,
-                        child: ElevatedButton.icon(
-                          onPressed: _handleSnooze,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.snoozed,
-                            foregroundColor: Colors.white,
-                          ),
-                          icon: const Icon(Icons.snooze, size: 28),
-                          label: Text(
-                            'SNOOZE ${AppConstants.snoozeDurationMinutes} MIN',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: AppConstants.spacingMedium),
-
-                      // Dismiss Button
+                      // Later Button
                       SizedBox(
                         width: double.infinity,
                         height: 60,
                         child: OutlinedButton.icon(
-                          onPressed: _handleMissed,
+                          onPressed: _handleSnooze,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white, width: 2),
+                            side: const BorderSide(
+                              color: Colors.white,
+                              width: 2,
+                            ),
                           ),
-                          icon: const Icon(Icons.cancel, size: 28),
+                          icon: const Icon(Icons.snooze, size: 28),
                           label: const Text(
-                            'DISMISS',
+                            'LATER',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,

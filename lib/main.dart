@@ -63,17 +63,26 @@ Future<void> requestPermissions() async {
       debugPrint('⏰ Exact alarm permission: $alarmStatus');
     }
 
-    // Request ignore battery optimization (optional but recommended)
+    // Request system alert window (Appear on top) for full screen intents
+    if (await Permission.systemAlertWindow.isDenied) {
+      final alertWindowStatus = await Permission.systemAlertWindow.request();
+      debugPrint('🪟 System Alert Window permission: $alertWindowStatus');
+    }
+
+    // Request ignore battery optimization (highly recommended for alarms)
     final batteryStatus = await Permission.ignoreBatteryOptimizations.status;
     if (batteryStatus.isDenied) {
-      debugPrint('🔋 Battery optimization not disabled (this is optional)');
+      final requestStatus = await Permission.ignoreBatteryOptimizations
+          .request();
+      debugPrint('🔋 Battery optimization disabled: $requestStatus');
     }
 
     // Check all permissions
     final permissions = {
       'Notification': await Permission.notification.status,
       'Exact Alarm': await Permission.scheduleExactAlarm.status,
-      'Battery Optimization': await Permission.ignoreBatteryOptimizations.status,
+      'Battery Optimization':
+          await Permission.ignoreBatteryOptimizations.status,
     };
 
     permissions.forEach((name, status) {
@@ -82,7 +91,9 @@ Future<void> requestPermissions() async {
 
     // Show warning if critical permissions denied
     if (!notificationStatus.isGranted) {
-      debugPrint('⚠️ Warning: Notification permission denied. Alarms may not work properly.');
+      debugPrint(
+        '⚠️ Warning: Notification permission denied. Alarms may not work properly.',
+      );
     }
   } catch (e) {
     debugPrint('❌ Error requesting permissions: $e');

@@ -31,7 +31,9 @@ class AlarmService {
   static Future<void> scheduleAlarm(Medicine medicine) async {
     try {
       if (!medicine.isActive) {
-        debugPrint('⚠️ Medicine ${medicine.name} is not active, skipping alarm');
+        debugPrint(
+          '⚠️ Medicine ${medicine.name} is not active, skipping alarm',
+        );
         return;
       }
 
@@ -52,9 +54,10 @@ class AlarmService {
         notificationSettings: NotificationSettings(
           title: 'Medicine Reminder',
           body: 'Time to take ${medicine.name}',
-          stopButton: 'Stop',
+          stopButton: 'I Take',
           icon: 'notification_icon',
         ),
+        androidFullScreenIntent: true,
         warningNotificationOnKill: true,
       );
 
@@ -97,9 +100,10 @@ class AlarmService {
         notificationSettings: NotificationSettings(
           title: 'Medicine Reminder (Snoozed)',
           body: 'Time to take ${medicine.name}',
-          stopButton: 'Stop',
+          stopButton: 'I Take',
           icon: 'notification_icon',
         ),
+        androidFullScreenIntent: true,
         warningNotificationOnKill: true,
       );
 
@@ -130,7 +134,9 @@ class AlarmService {
 
       // Check if medicine is still active and within date range
       if (!medicine.isActive) {
-        debugPrint('⚠️ Medicine ${medicine.name} is not active, not rescheduling');
+        debugPrint(
+          '⚠️ Medicine ${medicine.name} is not active, not rescheduling',
+        );
         return;
       }
 
@@ -183,7 +189,13 @@ class AlarmService {
       final log = AlarmLog(
         id: uuid.v4(),
         medicineId: medicine.id,
-        scheduledDateTime: DateTime(now.year, now.month, now.day, medicine.hour, medicine.minute),
+        scheduledDateTime: DateTime(
+          now.year,
+          now.month,
+          now.day,
+          medicine.hour,
+          medicine.minute,
+        ),
         status: 'taken',
         actualTakenTime: now,
       );
@@ -209,7 +221,13 @@ class AlarmService {
       final log = AlarmLog(
         id: uuid.v4(),
         medicineId: medicine.id,
-        scheduledDateTime: DateTime(now.year, now.month, now.day, medicine.hour, medicine.minute),
+        scheduledDateTime: DateTime(
+          now.year,
+          now.month,
+          now.day,
+          medicine.hour,
+          medicine.minute,
+        ),
         status: 'missed',
         actualTakenTime: null,
       );
