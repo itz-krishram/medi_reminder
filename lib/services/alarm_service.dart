@@ -1,6 +1,6 @@
 // lib/services/alarm_service.dart
 
-import 'package:alarm/alarm.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/medicine.dart';
@@ -13,8 +13,24 @@ class AlarmService {
   /// Initialize alarm service
   static Future<void> init() async {
     try {
-      await Alarm.init();
-      debugPrint('✅ Alarm service initialized');
+      await AwesomeNotifications().initialize(
+        null, // Let awesome_notifications use default app icon
+        [
+          NotificationChannel(
+            channelKey: 'alarm_channel',
+            channelName: 'Medicine Alarms',
+            channelDescription: 'Notification channel for medicine reminders',
+            defaultColor: const Color(0xFF9D50DD),
+            ledColor: Colors.white,
+            importance: NotificationImportance.Max,
+            channelShowBadge: true,
+            locked: true, // Keep notification until user interacts
+            defaultRingtoneType: DefaultRingtoneType.Alarm,
+            criticalAlerts: true,
+          ),
+        ],
+      );
+      debugPrint('✅ Awesome Notifications initialized');
     } catch (e) {
       debugPrint('❌ Error initializing alarm service: $e');
       rethrow;
@@ -43,25 +59,37 @@ class AlarmService {
         return;
       }
 
-      final alarmSettings = AlarmSettings(
-        id: medicine.alarmId,
-        dateTime: nextAlarmTime,
-        assetAudioPath: 'assets/sounds/alarm.mp3',
-        loopAudio: true,
-        vibrate: true,
-        volume: 0.8,
-        fadeDuration: 3.0,
-        notificationSettings: NotificationSettings(
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: medicine.alarmId,
+          channelKey: 'alarm_channel',
           title: 'Medicine Reminder',
           body: 'Time to take ${medicine.name}',
-          stopButton: 'I Take',
-          icon: 'notification_icon',
+          category: NotificationCategory.Alarm,
+          wakeUpScreen: true,
+          fullScreenIntent: true,
+          autoDismissible: false,
+          payload: {'medicineId': medicine.id},
         ),
-        androidFullScreenIntent: true,
-        warningNotificationOnKill: true,
+        actionButtons: [
+          NotificationActionButton(
+            key: 'TAKE',
+            label: 'I TAKE',
+            actionType: ActionType.SilentAction,
+          ),
+          NotificationActionButton(
+            key: 'SNOOZE',
+            label: 'LATER',
+            actionType: ActionType.SilentAction,
+          ),
+        ],
+        schedule: NotificationCalendar.fromDate(
+          date: nextAlarmTime,
+          allowWhileIdle: true,
+          preciseAlarm: true,
+        ),
       );
 
-      await Alarm.set(alarmSettings: alarmSettings);
       debugPrint('✅ Alarm scheduled for ${medicine.name} at $nextAlarmTime');
     } catch (e) {
       debugPrint('❌ Error scheduling alarm for ${medicine.name}: $e');
@@ -72,7 +100,7 @@ class AlarmService {
   /// Cancel an alarm
   static Future<void> cancelAlarm(int alarmId) async {
     try {
-      await Alarm.stop(alarmId);
+      await AwesomeNotifications().cancel(alarmId);
       debugPrint('✅ Alarm $alarmId cancelled');
     } catch (e) {
       debugPrint('❌ Error cancelling alarm $alarmId: $e');
@@ -89,25 +117,36 @@ class AlarmService {
       // Schedule new alarm after specified minutes
       final snoozeTime = DateTime.now().add(Duration(minutes: minutes));
 
-      final alarmSettings = AlarmSettings(
-        id: medicine.alarmId,
-        dateTime: snoozeTime,
-        assetAudioPath: 'assets/sounds/alarm.mp3',
-        loopAudio: true,
-        vibrate: true,
-        volume: 0.8,
-        fadeDuration: 3.0,
-        notificationSettings: NotificationSettings(
+      await AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: medicine.alarmId,
+          channelKey: 'alarm_channel',
           title: 'Medicine Reminder (Snoozed)',
           body: 'Time to take ${medicine.name}',
-          stopButton: 'I Take',
-          icon: 'notification_icon',
+          category: NotificationCategory.Alarm,
+          wakeUpScreen: true,
+          fullScreenIntent: true,
+          autoDismissible: false,
+          payload: {'medicineId': medicine.id},
         ),
-        androidFullScreenIntent: true,
-        warningNotificationOnKill: true,
+        actionButtons: [
+          NotificationActionButton(
+            key: 'TAKE',
+            label: 'I TAKE',
+            actionType: ActionType.SilentAction,
+          ),
+          NotificationActionButton(
+            key: 'SNOOZE',
+            label: 'LATER',
+            actionType: ActionType.SilentAction,
+          ),
+        ],
+        schedule: NotificationCalendar.fromDate(
+          date: snoozeTime,
+          allowWhileIdle: true,
+          preciseAlarm: true,
+        ),
       );
-
-      await Alarm.set(alarmSettings: alarmSettings);
 
       // Log snooze action
       final log = AlarmLog(
@@ -161,7 +200,7 @@ class AlarmService {
   /// Cancel all alarms
   static Future<void> cancelAllAlarms() async {
     try {
-      await Alarm.stopAll();
+      await AwesomeNotifications().cancelAll();
       debugPrint('✅ All alarms cancelled');
     } catch (e) {
       debugPrint('❌ Error cancelling all alarms: $e');
@@ -299,15 +338,5 @@ class AlarmService {
     }
 
     return null; // No valid alarm time found
-  }
-
-  /// Check if an alarm is currently ringing
-  static Future<bool> isAlarmRinging() async {
-    return await Alarm.hasAlarm();
-  }
-
-  /// Get all currently set alarms
-  static Future<List<AlarmSettings>> getAllAlarms() async {
-    return await Alarm.getAlarms();
   }
 }

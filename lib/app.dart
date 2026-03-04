@@ -1,11 +1,14 @@
 // lib/app.dart
 
 import 'package:flutter/material.dart';
-import 'package:alarm/alarm.dart';
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'screens/home_screen.dart';
 import 'screens/alarm_trigger_screen.dart';
 import 'utils/theme.dart';
 import 'utils/constants.dart';
+import 'services/hive_service.dart';
+import 'models/medicine.dart';
+import 'services/alarm_service.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -18,46 +21,18 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _setupAlarmListener();
-    _checkRingingAlarms();
+    _setupNotifications();
   }
 
-  Future<void> _checkRingingAlarms() async {
-    final alarms = await Alarm.getAlarms();
-    for (final alarm in alarms) {
-      if (await Alarm.isRinging(alarm.id)) {
-        _handleAlarmRing(alarm);
-        break;
-      }
-    }
-  }
-
-  void _setupAlarmListener() {
-    // Listen to alarm ring events
-    Alarm.ringStream.stream.listen((alarmSettings) {
-      _handleAlarmRing(alarmSettings);
-    });
-  }
-
-  void _handleAlarmRing(AlarmSettings alarmSettings) {
-    debugPrint('🔔 Alarm ringing: ${alarmSettings.id}');
-
-    // Navigate to alarm trigger screen
-    // We need to find the medicine ID from the alarm ID
-    // For now, we'll pass the alarm ID and let the screen handle it
-
-    // In a real scenario, you would store a mapping or include
-    // the medicine ID in the notification body or use a custom data field
-    // For this implementation, we'll navigate to a generic alarm screen
-
-    Navigator.of(navigatorKey.currentContext!).push(
-      MaterialPageRoute(
-        builder: (context) => AlarmTriggerScreen(
-          medicineId: alarmSettings.id
-              .toString(), // This needs to be mapped properly
-        ),
-        fullscreenDialog: true,
-      ),
+  void _setupNotifications() {
+    AwesomeNotifications().setListeners(
+      onActionReceivedMethod: NotificationController.onActionReceivedMethod,
+      onNotificationCreatedMethod:
+          NotificationController.onNotificationCreatedMethod,
+      onNotificationDisplayedMethod:
+          NotificationController.onNotificationDisplayedMethod,
+      onDismissActionReceivedMethod:
+          NotificationController.onDismissActionReceivedMethod,
     );
   }
 
@@ -87,3 +62,68 @@ class _MyAppState extends State<MyApp> {
 
 // Global navigator key for accessing navigator from outside widget tree
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+class NotificationController {
+  /// Use this method to detect when a new notification or a schedule is created
+  @pragma("vm:entry-point")
+  static Future<void> onNotificationCreatedMethod(
+    ReceivedNotification receivedNotification,
+  ) async {
+    // Your code goes here
+  }
+
+  /// Use this method to detect every time that a new notification is displayed
+  @pragma("vm:entry-point")
+  static Future<void> onNotificationDisplayedMethod(
+    ReceivedNotification receivedNotification,
+  ) async {
+    debugPrint('🔔 Alarm displayed: ${receivedNotification.id}');
+  }
+
+  /// Use this method to detect if the user dismissed a notification
+  @pragma("vm:entry-point")
+  static Future<void> onDismissActionReceivedMethod(
+    ReceivedAction receivedAction,
+  ) async {
+    // Handling dismissing could mean missed or just dismissed
+    debugPrint('Dismissed alarm: ${receivedAction.id}');
+  }
+
+  /// Use this method to detect when the user taps on a notification or action button
+  @pragma("vm:entry-point")
+  static Future<void> onActionReceivedMethod(
+    ReceivedAction receivedAction,
+  ) async {
+    debugPrint('Tap action received: ${receivedAction.buttonKeyPressed}');
+
+    final medicineId = receivedAction.payload?['medicineId'];
+
+    if (medicineId == null) return;
+
+    final medicines = HiveService.getActiveMedicines();
+    Medicine? triggeredMedicine;
+
+    for (final medicine in medicines) {
+      if (medicine.id == medicineId) {
+        triggeredMedicine = medicine;
+        break;
+      }
+    }
+
+    if (triggeredMedicine == null) return;
+
+    if (receivedAction.buttonKeyPressed == 'TAKE') {
+      AlarmService.markAsTaken(triggeredMedicine);
+    } else if (receivedAction.buttonKeyPressed == 'SNOOZE') {
+      AlarmService.snoozeAlarm(triggeredMedicine);
+    } else {
+      // Tap on the notification body itself -> open full screen
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (context) => AlarmTriggerScreen(medicineId: medicineId),
+          fullscreenDialog: true,
+        ),
+      );
+    }
+  }
+}
